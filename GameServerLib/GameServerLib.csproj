@@ -184,6 +184,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="API\Event.cs" />
+    <Compile Include="API\Listener.cs" />
+    <Compile Include="API\OnUnitDamageTaken.cs" />
     <Compile Include="Chatbox\Commands\PrintPackageListCommand.cs" />
     <Compile Include="Chatbox\Commands\LoadPackageCommand.cs" />
     <Compile Include="Chatbox\DebugMsgType.cs" />

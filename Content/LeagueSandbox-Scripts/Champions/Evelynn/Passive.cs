@@ -1,9 +1,8 @@
 using LeagueSandbox.GameServer.API;
 using GameServerCore.Domain.GameObjects;
-using LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI;
-using LeagueSandbox.GameServer.GameObjects.Missiles;
 using GameServerCore.Domain;
 using LeagueSandbox.GameServer.Scripting.CSharp;
+using System;
 
 namespace Spells
 {
@@ -11,11 +10,13 @@ namespace Spells
     {
         public void OnActivate(IChampion owner)
         {
-            ApiEventManager.OnChampionDamageTaken.AddListener(this, owner, SelfWasDamaged);
+            ApiEventManager.Subscribe(this);
         }
 
-        private void SelfWasDamaged()
+        [Listener]
+        public void SelfWasDamaged(OnUnitDamageTaken evt)
         {
+            Console.WriteLine( $"took {evt.Damage} dmg as {evt.Unit.Model}" );
         }
 
         public void OnDeactivate(IChampion owner)
