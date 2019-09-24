@@ -10,13 +10,7 @@ namespace Spells
     {
         public void OnActivate(IChampion owner)
         {
-            ApiEventManager.Subscribe(this);
-        }
 
-        [Listener]
-        public void SelfWasDamaged(OnUnitDamageTaken evt)
-        {
-            Console.WriteLine( $"took {evt.Damage} dmg as {evt.Unit.Model}" );
         }
 
         public void OnDeactivate(IChampion owner)

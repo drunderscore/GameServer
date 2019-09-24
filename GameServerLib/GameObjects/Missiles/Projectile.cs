@@ -3,6 +3,8 @@ using GameServerCore.Content;
 using GameServerCore.Domain;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
+using LeagueSandbox.GameServer.API;
+using LeagueSandbox.GameServer.API.Events;
 using LeagueSandbox.GameServer.Content;
 using LeagueSandbox.GameServer.GameObjects.AttackableUnits;
 using LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI;
@@ -99,7 +101,10 @@ namespace LeagueSandbox.GameServer.GameObjects.Missiles
                 var attackableUnit = unit;
                 if (attackableUnit != null)
                 {
-                    _originSpell.ApplyEffects(attackableUnit, this);
+                    using (ApiEventManager.DoPublish(new OnSpellHit(this, Owner, _originSpell, attackableUnit)))
+                    {
+                        _originSpell.ApplyEffects(attackableUnit, this);
+                    }
                 }
             }
             else

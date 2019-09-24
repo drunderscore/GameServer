@@ -8,6 +8,7 @@ using GameServerCore.Domain;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
 using LeagueSandbox.GameServer.API;
+using LeagueSandbox.GameServer.API.Events;
 using LeagueSandbox.GameServer.Content;
 using LeagueSandbox.GameServer.GameObjects.AttackableUnits.Buildings.AnimatedBuildings;
 using LeagueSandbox.GameServer.GameObjects.Missiles;
@@ -392,11 +393,11 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         /// </summary>
         public virtual void AutoAttackHit(IAttackableUnit target)
         {
-            if (HasCrowdControl(CrowdControlType.BLIND))
+            if ( HasCrowdControl( CrowdControlType.BLIND ) )
             {
-                target.TakeDamage(this, 0, DamageType.DAMAGE_TYPE_PHYSICAL,
+                target.TakeDamage( this, 0, DamageType.DAMAGE_TYPE_PHYSICAL,
                                              DamageSource.DAMAGE_SOURCE_ATTACK,
-                                             DamageText.DAMAGE_TEXT_MISS);
+                                             DamageText.DAMAGE_TEXT_MISS );
                 return;
             }
 
@@ -406,12 +407,17 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                 damage *= Stats.CriticalDamage.Total;
             }
 
-            var onAutoAttack = _scriptEngine.GetStaticMethod<Action<IAttackableUnit, IAttackableUnit>>(Model, "Passive", "OnAutoAttack");
-            onAutoAttack?.Invoke(this, target);
+            using (var p = ApiEventManager.DoPublish(new OnAutoAttack(this, target, damage)))
+            {
+                damage = p.Args.Damage;
 
-            target.TakeDamage(this, damage, DamageType.DAMAGE_TYPE_PHYSICAL,
-                DamageSource.DAMAGE_SOURCE_ATTACK,
-                _isNextAutoCrit);
+                var onAutoAttack = _scriptEngine.GetStaticMethod<Action<IAttackableUnit, IAttackableUnit>>(Model, "Passive", "OnAutoAttack");
+                onAutoAttack?.Invoke(this, target);
+                 
+                target.TakeDamage(this, damage, DamageType.DAMAGE_TYPE_PHYSICAL,
+                    DamageSource.DAMAGE_SOURCE_ATTACK,
+                    _isNextAutoCrit);
+            }
         }
 
         public void UpdateAutoAttackTarget(float diff)

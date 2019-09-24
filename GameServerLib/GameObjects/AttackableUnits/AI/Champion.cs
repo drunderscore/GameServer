@@ -12,6 +12,7 @@ using LeagueSandbox.GameServer.Content;
 using LeagueSandbox.GameServer.GameObjects.Spells;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 using LeagueSandbox.GameServer.Items;
+using LeagueSandbox.GameServer.API.Events;
 
 namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 {
@@ -417,9 +418,14 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 
             while (stats.Level < expMap.Count && stats.Experience >= expMap[stats.Level])
             {
-                Stats.LevelUp();
-                Logger.Debug("Champion " + Model + " leveled up to " + stats.Level);
-                SkillPoints++;
+                byte sp = 1;
+                using (var p = ApiEventManager.DoPublish(new OnLevelUp(this, stats.Level + 1, sp)))
+                {
+                    sp = p.Args.Skillpoints;
+                    Stats.LevelUp();
+                    Logger.Debug("Champion " + Model + " leveled up to " + stats.Level);
+                    SkillPoints += sp;
+                }
             }
 
             return true;
@@ -427,33 +433,36 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 
         public void OnKill(IAttackableUnit killed)
         {
-            if (killed is IMinion)
+            using(ApiEventManager.DoPublish(new OnChampionKill(killed, this)))
             {
-                ChampStats.MinionsKilled += 1;
-                if (killed.Team == TeamId.TEAM_NEUTRAL)
+                if (killed is IMinion)
                 {
-                    ChampStats.NeutralMinionsKilled += 1;
-                }
+                    ChampStats.MinionsKilled += 1;
+                    if (killed.Team == TeamId.TEAM_NEUTRAL)
+                    {
+                        ChampStats.NeutralMinionsKilled += 1;
+                    }
 
-                var gold = _game.Map.MapProperties.GetGoldFor(killed);
-                if (gold <= 0)
-                {
-                    return;
-                }
+                    var gold = _game.Map.MapProperties.GetGoldFor(killed);
+                    if (gold <= 0)
+                    {
+                        return;
+                    }
 
-                Stats.Gold += gold;
-                _game.PacketNotifier.NotifyAddGold(this, killed, gold);
+                    Stats.Gold += gold;
+                    _game.PacketNotifier.NotifyAddGold(this, killed, gold);
 
-                if (KillDeathCounter < 0)
-                {
-                    ChampionGoldFromMinions += gold;
-                    Logger.Debug($"Adding gold form minions to reduce death spree: {ChampionGoldFromMinions}");
-                }
+                    if (KillDeathCounter < 0)
+                    {
+                        ChampionGoldFromMinions += gold;
+                        Logger.Debug($"Adding gold form minions to reduce death spree: {ChampionGoldFromMinions}");
+                    }
 
-                if (ChampionGoldFromMinions >= 50 && KillDeathCounter < 0)
-                {
-                    ChampionGoldFromMinions = 0;
-                    KillDeathCounter += 1;
+                    if (ChampionGoldFromMinions >= 50 && KillDeathCounter < 0)
+                    {
+                        ChampionGoldFromMinions = 0;
+                        KillDeathCounter += 1;
+                    }
                 }
             }
         }

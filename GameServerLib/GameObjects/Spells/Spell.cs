@@ -4,6 +4,7 @@ using GameServerCore.Domain;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
 using LeagueSandbox.GameServer.API;
+using LeagueSandbox.GameServer.API.Events;
 using LeagueSandbox.GameServer.Content;
 using LeagueSandbox.GameServer.GameObjects.AttackableUnits;
 using LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI;
@@ -85,38 +86,47 @@ namespace LeagueSandbox.GameServer.GameObjects.Spells
                 return false;
             }
 
-            if (_game.Config.ManaCostsEnabled)
+            var spellCost = SpellData.ManaCost[Level] * (1 - stats.SpellCostReduction);
+            using (var p = ApiEventManager.DoPublish(new OnSpellCast(Owner, this, u, _spellGameScript, spellCost)))
             {
-                stats.CurrentMana = stats.CurrentMana - SpellData.ManaCost[Level] * (1 - stats.SpellCostReduction);
+                if (p.Args.Canceled)
+                    return false;
+
+                spellCost = p.Args.SpellCost;
+
+                if (_game.Config.ManaCostsEnabled)
+                {
+                    stats.CurrentMana -= spellCost;
+                }
+
+                X = x;
+                Y = y;
+                X2 = x2;
+                Y2 = y2;
+                Target = u;
+                FutureProjNetId = _networkIdManager.GetNewNetId();
+                SpellNetId = _networkIdManager.GetNewNetId();
+
+                if (SpellData.TargettingType == 1 && Target != null && Target.GetDistanceTo(Owner) > SpellData.CastRange[Level])
+                {
+                    return false;
+                }
+                
+                _spellGameScript.OnStartCasting(Owner, this, Target);
+
+                if (SpellData.GetCastTime() > 0 && (SpellData.Flags & (int)SpellFlag.SPELL_FLAG_INSTANT_CAST) == 0)
+                {
+                    Owner.SetPosition(Owner.X, Owner.Y); //stop moving serverside too. TODO: check for each spell if they stop movement or not
+                    State = SpellState.STATE_CASTING;
+                    CurrentCastTime = SpellData.GetCastTime();
+                }
+                else
+                {
+                    FinishCasting();
+                }
+
+                _game.PacketNotifier.NotifyCastSpell(_game.Map.NavGrid, this, new Vector2(x, y) , new Vector2(x2, y2), FutureProjNetId, SpellNetId);
             }
-
-            X = x;
-            Y = y;
-            X2 = x2;
-            Y2 = y2;
-            Target = u;
-            FutureProjNetId = _networkIdManager.GetNewNetId();
-            SpellNetId = _networkIdManager.GetNewNetId();
-
-            if (SpellData.TargettingType == 1 && Target != null && Target.GetDistanceTo(Owner) > SpellData.CastRange[Level])
-            {
-                return false;
-            }
-
-            _spellGameScript.OnStartCasting(Owner, this, Target);
-
-            if (SpellData.GetCastTime() > 0 && (SpellData.Flags & (int)SpellFlag.SPELL_FLAG_INSTANT_CAST) == 0)
-            {
-                Owner.SetPosition(Owner.X, Owner.Y); //stop moving serverside too. TODO: check for each spell if they stop movement or not
-                State = SpellState.STATE_CASTING;
-                CurrentCastTime = SpellData.GetCastTime();
-            }
-            else
-            {
-                FinishCasting();
-            }
-
-            _game.PacketNotifier.NotifyCastSpell(_game.Map.NavGrid, this, new Vector2(x, y) , new Vector2(x2, y2), FutureProjNetId, SpellNetId);
             return true;
         }
 

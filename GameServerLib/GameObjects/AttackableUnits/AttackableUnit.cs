@@ -4,6 +4,7 @@ using GameServerCore.Domain;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
 using LeagueSandbox.GameServer.API;
+using LeagueSandbox.GameServer.API.Events;
 using LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 using LeagueSandbox.GameServer.Items;
@@ -80,28 +81,31 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
 
         public virtual void Die(IAttackableUnit killer)
         {
-            SetToRemove();
-            _game.ObjectManager.StopTargeting(this);
-
-            _game.PacketNotifier.NotifyNpcDie(this, killer);
-
-            var exp = _game.Map.MapProperties.GetExperienceFor(this);
-            var champs = _game.ObjectManager.GetChampionsInRange(this, EXP_RANGE, true);
-            //Cull allied champions
-            champs.RemoveAll(l => l.Team == Team);
-
-            if (champs.Count > 0)
+            using (ApiEventManager.DoPublish(new OnUnitDeath(this, killer)))
             {
-                var expPerChamp = exp / champs.Count;
-                foreach (var c in champs)
-                {
-                    c.Stats.Experience += expPerChamp;
-                    _game.PacketNotifier.NotifyAddXp(c, expPerChamp);
-                }
-            }
+                SetToRemove();
+                _game.ObjectManager.StopTargeting(this);
 
-            if (killer != null && killer is IChampion champion)
-                champion.OnKill(this);
+                _game.PacketNotifier.NotifyNpcDie(this, killer);
+
+                var exp = _game.Map.MapProperties.GetExperienceFor(this);
+                var champs = _game.ObjectManager.GetChampionsInRange(this, EXP_RANGE, true);
+                //Cull allied champions
+                champs.RemoveAll(l => l.Team == Team);
+
+                if (champs.Count > 0)
+                {
+                    var expPerChamp = exp / champs.Count;
+                    foreach (var c in champs)
+                    {
+                        c.Stats.Experience += expPerChamp;
+                        _game.PacketNotifier.NotifyAddXp(c, expPerChamp);
+                    }
+                }
+
+                if (killer != null && killer is IChampion champion)
+                    champion.OnKill(this);
+            }
         }
 
         public virtual bool IsInDistress()
@@ -169,11 +173,15 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                 //Damage dealing. (based on leagueoflegends' wikia)
                 damage = defense >= 0 ? 100 / (100 + defense) * damage : (2 - 100 / (100 - defense)) * damage;
             }
-
-            //ApiEventManager.OnUnitDamageTaken.Publish(this);
-            ApiEventManager.Publish(new OnUnitDamageTaken(this, damage));
-
-            Stats.CurrentHealth = Math.Max(0.0f, Stats.CurrentHealth - damage);
+            
+            using (var p = ApiEventManager.DoPublish(new OnUnitDamageTaken(this, attacker, damage, type, source, damageText)))
+            {
+                if (p.Args.Canceled)
+                    return;
+                damage = p.Args.Damage;
+                Stats.CurrentHealth = Math.Max(0.0f, Stats.CurrentHealth - damage);
+            }
+            
             if (!IsDead && Stats.CurrentHealth <= 0)
             {
                 IsDead = true;
