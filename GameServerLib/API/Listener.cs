@@ -15,12 +15,12 @@ namespace LeagueSandbox.GameServer.API
 
         /// <summary>
         /// Mark a method as a listener for events.
-        /// </summary>
-        /// <param name="t">When should this listener be invoked?</param>
         /// <para>
         /// PRE events will be invoked before the actual event occurs.
         /// POST events will be invoked after the actual event occurs.
         /// </para>
+        /// </summary>
+        /// <param name="t">When should this listener be invoked?</param>
         public Listener( EventType t )
         {
             Type = t;
