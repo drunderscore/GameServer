@@ -277,6 +277,9 @@
     <Compile Include="Logging\LoggerProvider.cs" />
     <Compile Include="Maps\Map.cs" />
     <Compile Include="Maps\SurrenderHandler.cs" />
+    <Compile Include="NetworkDebug\LeagueBinaryWriter.cs" />
+    <Compile Include="NetworkDebug\NetworkDebug.cs" />
+    <Compile Include="NetworkDebug\UDPSocket.cs" />
     <Compile Include="ObjectManager.cs" />
     <Compile Include="Packets\NetworkIdManager.cs" />
     <Compile Include="Attributes\DisabledHandlerAttribute.cs" />

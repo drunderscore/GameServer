@@ -4,6 +4,8 @@ using GameServerCore.Domain.GameObjects;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Domain;
 using LeagueSandbox.GameServer.Scripting.CSharp;
+using NetworkDebugServer;
+using System;
 
 namespace Spells
 {
@@ -29,6 +31,8 @@ namespace Spells
             var range = to * 1150;
             var trueCoords = current + range;
             spell.AddProjectile("EzrealMysticShotMissile", owner.X, owner.Y, trueCoords.X, trueCoords.Y);
+            NetworkDebug.Debug.DrawWorldCircle(new Vector2(trueCoords.X, trueCoords.Y), 5.0f);
+            Console.WriteLine($"{trueCoords.X}, {trueCoords.Y}. spell was {spell.X}, {spell.Y}");
         }
 
         public void ApplyEffects(IChampion owner, IAttackableUnit target, ISpell spell, IProjectile projectile)
